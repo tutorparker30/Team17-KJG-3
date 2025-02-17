@@ -23,12 +23,17 @@ protected:
 	USceneComponent* SceneRoot;
 	UStaticMeshComponent* StaticMeshComp;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Rotation")
 	float RotationSpeed;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Yaw")
 	float SpeedZ;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Yaw")
 	float MaxHeight;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Yaw")
 	float MinHeight;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Yaw")
 	float Gravity;
-	float Bounciness;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Yaw")
 	float InitialSpeedZ;
 
 	virtual void BeginPlay() override;

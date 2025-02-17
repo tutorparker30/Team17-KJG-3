@@ -2,6 +2,8 @@
 
 AA2::AA2()
 {
+	MoveSpeed = 50.0f;
+
 	PrimaryActorTick.bCanEverTick = false;
 
 	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
@@ -31,10 +33,17 @@ void AA2::BeginPlay()
 {
 	Super::BeginPlay();
 
-
+	SetActorLocation(FVector(0.0f, 0.0f, 80.0f));
+	SetActorScale3D(FVector(0.2f, 0.2f, 0.4f));
 }
 
 void AA2::Tick(float DeltaTime)
 {
-	
+	Super::Tick(DeltaTime);
+
+	if (!FMath::IsNearlyZero(MoveSpeed))
+	{
+		AddActorWorldOffset(FVector(MoveSpeed * DeltaTime, 0.0f, 0.0f));
+	}
+
 }

@@ -16,6 +16,8 @@ public:
 	UStaticMeshComponent* StaticMeshComp;
 
 protected:
+	float MoveSpeed;
+
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
 

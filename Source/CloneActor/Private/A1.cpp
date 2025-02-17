@@ -5,11 +5,11 @@ AA1::AA1()
 	PrimaryActorTick.bCanEverTick = true;
 
 	RotationSpeed = 1080.0f;
-	SpeedZ = 70.0f;
-	MaxHeight = 70.0f;
-	MinHeight = 20.0f;
-	Gravity = -90.0f;
-	InitialSpeedZ = 70.0f;
+	SpeedZ = 160.0f;
+	MaxHeight = 160.0f;
+	MinHeight = 110.0f;
+	Gravity = -200.0f;
+	InitialSpeedZ = 160.0f;
 
 	SceneRoot = CreateDefaultSubobject<USceneComponent>(TEXT("SceneRoot"));
 	SetRootComponent(SceneRoot);
@@ -37,13 +37,14 @@ void AA1::BeginPlay()
 {
 	Super::BeginPlay();
 
-	SetActorLocation(FVector(300.0f, 200.0f, 20.0f));
+	SetActorLocation(FVector(40.0f, 40.0f, 110.0f));
 	SetActorScale3D(FVector(0.5f));
 }
 
 void AA1::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
+
 
 	if (!FMath::IsNearlyZero(RotationSpeed))
 	{
