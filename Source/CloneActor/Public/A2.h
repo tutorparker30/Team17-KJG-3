@@ -16,9 +16,25 @@ public:
 	UStaticMeshComponent* StaticMeshComp;
 
 protected:
-	float MoveSpeed;
+
+	float SpeedX;
+	float MaxX;
+	float MinX;
 
 	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaTime) override;
+
+	UFUNCTION()
+	void ChangeColor();
+
+private:
+	void HideActor();
+	void ShowActor();
+
+	FTimerHandle ActorTimerHandle;
+
+	FTimerHandle ColorChangeTimerHandle;
+	
+	FTimerHandle RepeatingColorChangeTimerHandle;
 
 };

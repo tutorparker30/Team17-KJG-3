@@ -36,14 +36,6 @@ void AA2::BeginPlay()
 
 	HideActor();
 
-	GetWorldTimerManager().SetTimer(
-		RepeatingColorChangeTimerHandle,
-		this,
-		&AA2::ChangeColor,
-		3.0f,
-		true
-	);
-
 
 
 }
