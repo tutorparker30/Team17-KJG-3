@@ -1,9 +1,15 @@
 #include "SpartaCharacter.h"
 #include "SpartaPlayerController.h"
+#include "SpartaGameState.h"
 #include "EnhancedInputComponent.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/Actor.h"
+#include "Kismet/GameplayStatics.h"
+#include "Components/WidgetComponent.h"
+#include "Components/TextBlock.h"
+#include "Components/ProgressBar.h"
 
 ASpartaCharacter::ASpartaCharacter()
 {
@@ -18,12 +24,31 @@ ASpartaCharacter::ASpartaCharacter()
 	CameraComp->SetupAttachment(SpringArmComp, USpringArmComponent::SocketName);
 	CameraComp->bUsePawnControlRotation = false;
 
+	OverHeadWidget = CreateDefaultSubobject<UWidgetComponent>(TEXT("OverHeadWidget"));
+	OverHeadWidget->SetupAttachment(GetMesh());
+	OverHeadWidget->SetWidgetSpace(EWidgetSpace::Screen);
+
+	MaxHealth = 100.0f;
+	Health = MaxHealth;
+
 	NormalSpeed = 600.0f;
-	SprintSpeedMultiplier = 1.5;
+	SprintSpeedMultiplier = 1.7f;
 	SprintSpeed = NormalSpeed * SprintSpeedMultiplier;
 
 	GetCharacterMovement()->MaxWalkSpeed = NormalSpeed;
 
+	bSprinting = false;
+	SpeedDebuffStack = 0;
+	CurrentSpeedMultiplier = 1.0f;
+	ReverseControlStack = 0;
+	bIsControlReversed = false;
+
+}
+
+void ASpartaCharacter::BeginPlay()
+{
+	Super::BeginPlay();
+	UpdateOverHeadHP();
 }
 
 void ASpartaCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
@@ -93,9 +118,17 @@ void ASpartaCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 
 void ASpartaCharacter::Move(const FInputActionValue& value)
 {
-	if (!Controller) return;
+	if (!Controller)
+	{
+		return;
+	}
 
-	const FVector2D MoveInput = value.Get<FVector2D>();
+	FVector2D MoveInput = value.Get<FVector2D>();
+
+	if (bIsControlReversed)
+	{
+		MoveInput *= -1.f;
+	}
 
 	if (!FMath::IsNearlyZero(MoveInput.X))
 	{
@@ -135,17 +168,133 @@ void ASpartaCharacter::Look(const FInputActionValue& value)
 
 void ASpartaCharacter::StartSprint(const FInputActionValue& value)
 {
-	if (GetCharacterMovement())
-	{
-		GetCharacterMovement()->MaxWalkSpeed = SprintSpeed;
-	}
+	bSprinting = true;
+	UpdateCharacterSpeed();
 }
 
 void ASpartaCharacter::StopSprint(const FInputActionValue& value)
 {
-	if (GetCharacterMovement())
+	bSprinting = false;
+	UpdateCharacterSpeed();
+}
+
+float ASpartaCharacter::GetHealth() const
+{
+	return Health;
+}
+
+void ASpartaCharacter::AddHealth(float Amount)
+{
+	Health = FMath::Clamp(Health + Amount, 0.0f, MaxHealth);
+	UpdateOverHeadHP();
+}
+
+float ASpartaCharacter::TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent,
+	AController* EventInstigator, AActor* DamageCauser)
+{
+	float ActualDamage = Super::TakeDamage(DamageAmount, DamageEvent, EventInstigator, DamageCauser);
+
+	Health = FMath::Clamp(Health - DamageAmount, 0.0f, MaxHealth);
+	UpdateOverHeadHP();
+
+	if (Health <= 0.0f)
 	{
-		GetCharacterMovement()->MaxWalkSpeed = NormalSpeed;
+		OnDeath();
+	}
+
+	return ActualDamage;
+}
+
+void ASpartaCharacter::OnDeath()
+{
+	ASpartaGameState* SpartaGameState = GetWorld() ? GetWorld()->GetGameState<ASpartaGameState>() : nullptr;
+	if (SpartaGameState)
+	{
+		SpartaGameState->OnGameOver();
 	}
 }
 
+void ASpartaCharacter::UpdateOverHeadHP()
+{
+	if (!OverHeadWidget)
+	{
+		return;
+	}
+
+	if (UUserWidget* WidgetInstance = OverHeadWidget->GetUserWidgetObject())
+	{
+		if (UProgressBar* HPBar = Cast<UProgressBar>(WidgetInstance->GetWidgetFromName(TEXT("HealthBar"))))
+		{
+			const float HPPercent = (MaxHealth > 0.f) ? Health / MaxHealth : 0.f;
+			HPBar->SetPercent(HPPercent);
+
+			if (HPPercent < 0.3f)
+			{
+				HPBar->SetFillColorAndOpacity(FLinearColor::Red);
+			}
+		}
+	}
+}
+
+void ASpartaCharacter::ApplySpeedDebuff(float Duration, float SpeedMutiplier)
+{
+	SpeedDebuffStack++;
+	if (SpeedMutiplier < CurrentSpeedMultiplier)
+	{
+		CurrentSpeedMultiplier = SpeedMutiplier;
+	}
+
+	UpdateCharacterSpeed();
+
+	FTimerHandle TempTimerHandle;
+	GetWorldTimerManager().SetTimer(
+		TempTimerHandle,
+		this,
+		&ASpartaCharacter::OnSpeedDebuffEnd,
+		Duration,
+		false
+	);
+}
+
+void ASpartaCharacter::OnSpeedDebuffEnd()
+{
+	SpeedDebuffStack = FMath::Max(0, SpeedDebuffStack - 1);
+	if (SpeedDebuffStack == 0)
+	{
+		CurrentSpeedMultiplier = 1.0f;
+		UpdateCharacterSpeed();
+	}
+}
+
+void ASpartaCharacter::ApplyReverseControlsDebuff(float Duration)
+{
+	ReverseControlStack++;
+	if (!bIsControlReversed)
+	{
+		bIsControlReversed = true;
+	}
+
+	FTimerHandle TempTimerHandle;
+	GetWorldTimerManager().SetTimer(
+		TempTimerHandle,
+		this,
+		&ASpartaCharacter::OnReverseControlsDebuffEnd,
+		Duration,
+		false
+	);
+}
+
+void ASpartaCharacter::OnReverseControlsDebuffEnd()
+{
+	ReverseControlStack = FMath::Max(0, ReverseControlStack - 1);
+	if (ReverseControlStack == 0)
+	{
+		bIsControlReversed = false;
+	}
+}
+
+void ASpartaCharacter::UpdateCharacterSpeed()
+{
+	const float BaseSpeed = bSprinting ? SprintSpeed : NormalSpeed;
+	GetCharacterMovement()->MaxWalkSpeed = BaseSpeed * CurrentSpeedMultiplier;
+}
